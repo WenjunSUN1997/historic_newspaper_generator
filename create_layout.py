@@ -24,8 +24,12 @@ def split_col(col):
     col_index = col['index']
     col_heigth = col_bbox[3] - col_bbox[1]
     paragraph_list = []
-    col_sep = create_sep(col_bbox[1], col_bbox[3],
-                         random.randint(0, 6), threshold=0)
+    if col_heigth <= 500:
+        col_sep = []
+    else:
+        col_sep = create_sep(col_bbox[1], col_bbox[3],
+                             random.randint(0, 5), threshold=80)
+
     if len(col_sep) == 0:
         paragraph_list.append({'bbox': col_bbox,
                                'index': col_index + '_' + '0'})
@@ -66,21 +70,24 @@ def generate_independent_region(sub_page, col_list):
     sub_page_index = sub_page['index']
     independent_region_num = random.randint(0, 6)
     for independent_region_index in range(independent_region_num):
-        start_col = random.randint(0, num_col-1)
-        start_x = col_list[start_col]['bbox'][0]
-        end_col = random.randint(start_col, num_col-1)
-        end_x = col_list[end_col]['bbox'][2]
-        start_y = random.randint(col_list[0]['bbox'][1], col_list[0]['bbox'][3]-100)
-        end_y = random.randint(start_y+100, col_list[0]['bbox'][3])
+        store_flag = True
+        start_col = random.randint(0, num_col-2)
+        start_x = col_list[start_col]['bbox'][0]+1
+        end_col = random.randint(start_col+1, num_col-1)
+        end_x = col_list[end_col]['bbox'][2]-1
+        start_y = random.randint(col_list[0]['bbox'][1], col_list[0]['bbox'][3])+1
+        end_y = random.randint(start_y, col_list[0]['bbox'][3])-1
         for region_unit in independent_region_list:
             if judge_overlap(region_unit['bbox'], [start_x, start_y, end_x, end_y]):
-                continue
+                store_flag = False
+                break
 
-        independent_region_list.append({'bbox': [start_x, start_y, end_x, end_y],
-                                        'index': sub_page_index + '_' + 'independ_'
-                                                 + str(independent_region_index),
-                                        'start_col': start_col,
-                                        'end_col': end_col})
+        if store_flag:
+            independent_region_list.append({'bbox': [start_x, start_y, end_x, end_y],
+                                            'index': sub_page_index + '_' + 'independ_'
+                                                     + str(independent_region_index),
+                                            'start_col': start_col,
+                                            'end_col': end_col})
 
     return independent_region_list
 
@@ -102,6 +109,7 @@ def split_subpage(sub_page):
     for col_index, col in enumerate(col_list):
         cx_0, cy_0, cx_1, cy_1 = col['bbox']
         store_flag = True
+        independent_region_overlap = []
         for independent_region in independent_region_list:
             if judge_overlap(col['bbox'], independent_region['bbox']):
                 ix_0, iy_0, ix_1, iy_1 = independent_region['bbox']
@@ -109,25 +117,27 @@ def split_subpage(sub_page):
                     store_flag = False
                     break
 
-                if cy_0>=iy_0 and cy_0<=iy_1 and cy_1>iy_1:
-                    col_list_to_split.append({'bbox': [cx_0, iy_1, cx_1, cy_1],
-                                              'index': col['index'] + '_0'})
-                    store_flag = False
+                independent_region_overlap.append(independent_region)
 
-                if cy_1>=iy_0 and cy_1<=iy_1 and cy_0<iy_0:
-                    col_list_to_split.append({'bbox': [cx_0, cy_1, cx_1, iy_0],
-                                                 'index': col['index'] + '_0'})
-                    store_flag = False
+        if len(independent_region_overlap) == 0:
+            if store_flag:
+             col_list_to_split.append(col)
 
-                if cy_0<=iy_0 and cy_1>=iy_1:
-                    col_list_to_split.append({'bbox': [cx_0, cy_0, cx_1, iy_0],
-                                              'index': col['index'] + 'break_0'})
-                    col_list_to_split.append({'bbox': [cx_0, iy_1, cx_1, cy_1],
-                                              'index': col['index'] + 'break_1'})
-                    store_flag = False
+        else:
+            independent_region_overlap = sorted(independent_region_overlap, key=lambda x: x['bbox'][1])
+            for ir_index, ir in enumerate(independent_region_overlap):
+                irx_0, iry_0, irx_1, iry_1 = ir['bbox']
+                if ir_index == 0:
+                    col_list_to_split.append({'bbox': [cx_0, cy_0, cx_1, iry_0],
+                                              'index': col['index'] + '_break_' + str(ir_index)})
+                else:
+                    col_list_to_split.append({'bbox': [cx_0, independent_region_overlap[ir_index-1]['bbox'][3],
+                                                       cx_1, iry_0],
+                                              'index': col['index'] + '_break_' + str(ir_index)})
 
-        if store_flag:
-            col_list_to_split.append(col)
+            col_list_to_split.append({'bbox': [cx_0, independent_region_overlap[-1]['bbox'][3],
+                                               cx_1, cy_1],
+                                      'index': col['index'] + '_break_' + str(len(independent_region_overlap))})
 
     print('split col')
     for col in col_list_to_split:
@@ -163,11 +173,7 @@ def layout_design(size=[2480, 3508]):
         sub_page_of_whole.append({'bbox': [0, whole_page_sep_hori[-1], size[0], size[1]],
                                   'index': str(len(whole_page_sep_hori))})
 
-    # #draw
-    # for x in sub_page_of_whole:
-    #     drawer.rectangle(x['bbox'], outline='green', width=10)
-    #
-    #
+
     # 开始垂直切分
     print('split sub page')
     for sub_page in sub_page_of_whole:
@@ -175,13 +181,28 @@ def layout_design(size=[2480, 3508]):
         paragraph += result['paragraph']
         independent_region += result['independent_region']
 
+    area = 0
     for x in paragraph:
-        drawer.rectangle(x['bbox'], outline='green', width=10)
+        area += (x['bbox'][2]-x['bbox'][0]) *(x['bbox'][3]-x['bbox'][1])
+        drawer.rectangle(x['bbox'], outline='green', width=10, fill='red')
 
     for x in independent_region:
-        drawer.rectangle(x['bbox'], outline='green', width=10)
+        area += (x['bbox'][2] - x['bbox'][0]) * (x['bbox'][3] - x['bbox'][1])
+        drawer.rectangle(x['bbox'], outline='green', width=10, fill='green')
+
+    for x in sub_page_of_whole:
+        drawer.rectangle(x['bbox'], outline='blue', width=30)
 
     image_to_draw.save('temp.png')
+    print(area)
+    print(size[0]*size[1])
+    # all_area = paragraph + independent_region
+    # for index in range(len(all_area)-1):
+    #     for index_1 in range(index+1, len(all_area)):
+    #         if judge_overlap(all_area[index_1]['bbox'], all_area[index]['bbox']):
+    #             print(all_area[index_1]['bbox'])
+    #             print(all_area[index]['bbox'])
+    #             print('---------------------------')
     return
 
 if __name__ == "__main__":
