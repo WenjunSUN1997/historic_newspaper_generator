@@ -184,11 +184,11 @@ def layout_design(size=[2480, 3508]):
     area = 0
     for x in paragraph:
         area += (x['bbox'][2]-x['bbox'][0]) *(x['bbox'][3]-x['bbox'][1])
-        drawer.rectangle(x['bbox'], outline='green', width=10, fill='red')
+        drawer.rectangle(x['bbox'], outline='white', width=10, fill='red')
 
     for x in independent_region:
         area += (x['bbox'][2] - x['bbox'][0]) * (x['bbox'][3] - x['bbox'][1])
-        drawer.rectangle(x['bbox'], outline='green', width=10, fill='green')
+        drawer.rectangle(x['bbox'], outline='white', width=10, fill='green')
 
     for x in sub_page_of_whole:
         drawer.rectangle(x['bbox'], outline='blue', width=30)
