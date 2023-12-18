@@ -193,7 +193,7 @@ def layout_design(size=[2480, 3508]):
     for x in sub_page_of_whole:
         drawer.rectangle(x['bbox'], outline='blue', width=30)
 
-    image_to_draw.save('temp.png')
+    image_to_draw.save('example.png')
     print(area)
     print(size[0]*size[1])
     # all_area = paragraph + independent_region
