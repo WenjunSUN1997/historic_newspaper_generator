@@ -75,7 +75,7 @@ def generate_independent_region(sub_page, col_list):
         start_x = col_list[start_col]['bbox'][0]+1
         end_col = random.randint(start_col+1, num_col-1)
         end_x = col_list[end_col]['bbox'][2]-1
-        start_y = random.randint(col_list[0]['bbox'][1], col_list[0]['bbox'][3])+1
+        start_y = random.randint(col_list[0]['bbox'][1], col_list[0]['bbox'][3]-1)+1
         end_y = random.randint(start_y, col_list[0]['bbox'][3])-1
         for region_unit in independent_region_list:
             if judge_overlap(region_unit['bbox'], [start_x, start_y, end_x, end_y]):
@@ -150,6 +150,7 @@ def layout_design(size=[2480, 3508]):
     image_to_draw = Image.new('RGB', (size[0], size[1]), (255, 255, 255))
     drawer = ImageDraw.Draw(image_to_draw, 'RGB')
     paragraph = []
+    paragraph_grouped = []
     independent_region = []
     whole_page_size = size
     whole_page_bbox = [0, 0, size[0], size[1]]
@@ -179,6 +180,7 @@ def layout_design(size=[2480, 3508]):
     for sub_page in sub_page_of_whole:
         result = split_subpage(sub_page)
         paragraph += result['paragraph']
+        paragraph_grouped += [result['paragraph']]
         independent_region += result['independent_region']
 
     area = 0
@@ -203,7 +205,10 @@ def layout_design(size=[2480, 3508]):
     #             print(all_area[index_1]['bbox'])
     #             print(all_area[index]['bbox'])
     #             print('---------------------------')
-    return
+    return {'paragraph': paragraph,
+            'independent_region': independent_region,
+            'image': image_to_draw,
+            'paragraph_grouped': paragraph_grouped}
 
 if __name__ == "__main__":
     layout_design()
